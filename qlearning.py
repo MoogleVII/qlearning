@@ -31,14 +31,20 @@ def init_env():
 ## (Q) - action-value pairs, current (state)
 def maximising_action(Q, state):
     #create list of all 4 possible actions to be taken
-    possible_actions = []
-    for i in range(4):
-        possible_actions.append(Q[state[0]][state[1]][i])
-    #return the index of the maximal action
+    possible_actions = list(Q[state[0]][state[1]])
+
+    #find maximising action in this state
+    ## check if multiple maxima exist
+    maximum = max(possible_actions)
+    maxima = []
+    i = 0
+    while i < len(possible_actions):
+        if possible_actions[i] == maximum:
+            maxima.append(i)
+        i+=1
+    ## choose one of the maxima at random
     #Action mapping - [left, up, right, down] == [0, 1, 2, 3]
-    if max(possible_actions) == 0:
-        return rand.randint(0,3)
-    return possible_actions.index(max(possible_actions))
+    return np.random.choice(maxima)
 
 #return action to be taken based on probablility e
 #Action mapping - [left, up, right, down] == [0, 1, 2, 3]
@@ -148,7 +154,7 @@ def main():
     #learn on environment 1, 1000 steps
     #learning parameters
     a = 1
-    e = 0.3
+    e = 0.0001
     y = 0.95
 
     for i in range(1001):
@@ -157,7 +163,8 @@ def main():
         T_at_step.append(T)
 #note: optimal solution is 10 steps
     print('Average steps to solve env 1: '),
-    print(np.average(T_at_step))
+    # print(np.average(T_at_step))
+    print(np.mean(T_at_step[-100:]))
     plt.figure(1)
     plt.plot(T_at_step)
     plt.title('Environment 1 Learning')
@@ -173,7 +180,7 @@ def main():
         T_at_step.append(T)
 #note: optimal solution is 16 steps
     print('Average steps to solve env 2: '),
-    print(np.average(T_at_step))
+    print(np.mean(T_at_step[-100:]))
     plt.figure(2)
     plt.plot(T_at_step)
     plt.title('Environment 2 Learning')
