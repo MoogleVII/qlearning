@@ -1,7 +1,7 @@
 
 import numpy as np
 import random as rand
-
+import matplotlib.pyplot as plt
 
 #Sate: set of coordinates
 #Initial state is [5,3]
@@ -36,6 +36,8 @@ def maximising_action(Q, state):
         possible_actions.append(Q[state[0]][state[1]][i])
     #return the index of the maximal action
     #Action mapping - [left, up, right, down] == [0, 1, 2, 3]
+    if max(possible_actions) == 0:
+        return rand.randint(0,3)
     return possible_actions.index(max(possible_actions))
 
 #return action to be taken based on probablility e
@@ -45,9 +47,11 @@ def choose_action(e, Q, state):
     choice = np.random.choice([0,1], 1, [e, 1-e])
     if choice == 0:
         #return random action
+        # print('rand')
         return rand.randint(0,3)
     elif choice == 1:
         #return arg_max Q(s, a)
+        # print('max')
         return maximising_action(Q, state)
 
 #Check if the selected movement is valid based on current state and environment
@@ -104,24 +108,23 @@ def is_non_obstacle(cell):
 ## goal location is reached
 #PARAMETERS
 ## current (state), (Q) action-value function, current environment (env),
-## current time step (T), probablity coefficient epsiolon (e), learning rate (a)
+## probablity coefficient epsiolon (e), learning rate (a)
 ## discount factor (y)
-def learning_episode(state, Q, env, T, e, a, y):
-    if state == [0,8]:
-        #Base case - goal rached, begin new episode
-        #TODO finished current episode - return Q, T
-        return Q, T
-    else:
-    #recursion case - continue updating
+def learning_episode(state, Q, env, e, a, y):
+
+    T = 0
+    while state != [0,8]:
         #choose action to take
         action = choose_action(e, Q, state)
         #check if the action is valid
         valid = is_valid_move(env, action, state)
         #update the state based on action
-        print(state)
-        print(valid)
-        print(action)
+        # print(state)
+        # print(valid)
+        # print(action)
+        # print(Q)
         prev_state = list(state)
+        # print(prev_state)
         if valid:
             state = update_state(state, action)
         if state == [0,8]:
@@ -129,8 +132,10 @@ def learning_episode(state, Q, env, T, e, a, y):
         else:
             r = 0
         #update Q
-        Q[prev_state[0]][prev_state[1]][action] += a * (r + y * Q[state[0]][state[1]][maximising_action(Q, state)] - Q[state[0]][state[1]][action])
-        return learning_episode(state, Q, env, T+1, e, a, y) #TODO recursion no work
+        Q[prev_state[0]][prev_state[1]][action] += a * (r + (y * Q[state[0]][state[1]][maximising_action(Q, state)]) - Q[prev_state[0]][prev_state[1]][action])
+
+        T+=1
+    return Q, T
 
 def main():
     #initialize environments 1 and 2
@@ -141,15 +146,41 @@ def main():
     #array to be graphed - step vs T taken to reach solution
     T_at_step = []
     #learn on environment 1, 1000 steps
-    state = init_state() #move to loop
     #learning parameters
-    a = 0.1
-    e = 0.1
+    a = 1
+    e = 0.3
     y = 0.95
-    Q, T = learning_episode(state, Q, env1, 0, e, a, y)
-    #learn on environment 2, ?? steps
-    #graph number of time steps taken to reach goal
 
+    for i in range(1001):
+        state = init_state() #move to loop
+        Q, T = learning_episode(state, Q, env1, e, a, y)
+        T_at_step.append(T)
+#note: optimal solution is 10 steps
+    print('Average steps to solve env 1: '),
+    print(np.average(T_at_step))
+    plt.figure(1)
+    plt.plot(T_at_step)
+    plt.title('Environment 1 Learning')
+    plt.ylabel('# steps to Solve')
+    plt.xlabel('Iteration')
+
+
+    #learn on environment 2, ?? steps
+    T_at_step = []
+    for i in range(1001):
+        state = init_state() #move to loop
+        Q, T = learning_episode(state, Q, env2, e, a, y)
+        T_at_step.append(T)
+#note: optimal solution is 16 steps
+    print('Average steps to solve env 2: '),
+    print(np.average(T_at_step))
+    plt.figure(2)
+    plt.plot(T_at_step)
+    plt.title('Environment 2 Learning')
+    plt.ylabel('# steps to Solve')
+    plt.xlabel('Iteration')
+    plt.show()
+    #graph number of time steps taken to reach goal
 
 if __name__ == "__main__":
     main()
