@@ -25,8 +25,8 @@ def init_env():
         env2[3][j] = 1
     return env1, env2
 
-#check all 4 possible actions, return action which corresponds to
-# maximum Q
+#check all 4 possible actions taken from (state), return action which corresponds to
+# maximum Q(state)
 #PARAMETERS
 ## (Q) - action-value pairs, current (state)
 def maximising_action(Q, state):
@@ -46,18 +46,16 @@ def maximising_action(Q, state):
     #Action mapping - [left, up, right, down] == [0, 1, 2, 3]
     return np.random.choice(maxima)
 
-#return action to be taken based on probablility e
+#choose action to be taken based on probablility (e)
 #Action mapping - [left, up, right, down] == [0, 1, 2, 3]
 def choose_action(e, Q, state):
     #based on e, choose either random action (0) or maximising action (1)
-    choice = np.random.choice([0,1], 1, [e, 1-e])
+    choice = np.random.choice([0,1], 1, p=[e, 1-e])
     if choice == 0:
         #return random action
-        # print('rand')
         return rand.randint(0,3)
     elif choice == 1:
         #return arg_max Q(s, a)
-        # print('max')
         return maximising_action(Q, state)
 
 #Check if the selected movement is valid based on current state and environment
@@ -144,17 +142,16 @@ def learning_episode(state, Q, env, e, a, y):
     return Q, T
 
 def main():
-    #initialize environments 1 and 2
+    #initialize environments 1 and 2, Q array, state
     rand.seed()
     env1, env2 = init_env()
-    #initialize Q array, state
     Q = init_q()
-    #array to be graphed - step vs T taken to reach solution
+    #array to be graphed - episode vs T taken to reach solution
     T_at_step = []
     #learn on environment 1, 1000 steps
     #learning parameters
     a = 1
-    e = 0.0001
+    e = 0.05
     y = 0.95
 
     for i in range(1001):
@@ -166,13 +163,15 @@ def main():
     # print(np.average(T_at_step))
     print(np.mean(T_at_step[-100:]))
     plt.figure(1)
-    plt.plot(T_at_step)
+    plt.plot(T_at_step, label='actual')
+    plt.plot([10 for i in range(len(T_at_step))], label='opimal')
     plt.title('Environment 1 Learning')
     plt.ylabel('# steps to Solve')
-    plt.xlabel('Iteration')
+    plt.xlabel('Episode')
+    plt.legend()
 
 
-    #learn on environment 2, ?? steps
+    #learn on environment 2, 1000 steps
     T_at_step = []
     for i in range(1001):
         state = init_state() #move to loop
@@ -182,12 +181,13 @@ def main():
     print('Average steps to solve env 2: '),
     print(np.mean(T_at_step[-100:]))
     plt.figure(2)
-    plt.plot(T_at_step)
+    plt.plot(T_at_step, label='actual')
+    plt.plot([16 for i in range(len(T_at_step))], label='opimal')
     plt.title('Environment 2 Learning')
     plt.ylabel('# steps to Solve')
-    plt.xlabel('Iteration')
+    plt.xlabel('Episode')
+    plt.legend()
     plt.show()
-    #graph number of time steps taken to reach goal
 
 if __name__ == "__main__":
     main()
