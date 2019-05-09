@@ -62,7 +62,11 @@ def choose_action(e, Q, state):
 ##PARAMETERS
 #current state, proposed movement, current environment
 def is_valid_move(env, action, state):
-    #TODO error handling
+    #error handling
+    assert(action <= 3 and action >= 0)
+    assert(len(env) > 0)
+    assert(len(state) == 2)
+    assert(state[0] >= 0 and state[1] >=0)
 
     #Get environment bonudaries
     numrows = len(env)
@@ -87,24 +91,31 @@ def is_valid_move(env, action, state):
 
 #updates current state based on the decided action
 def update_state(state, action):
-    #TODO error handling
-        if action == 0: #left
-            state[1] = state[1] - 1
-        elif action == 1: #up
-            state[0] = state[0] - 1
-        elif action == 2: #right
-            state[1] = state[1] + 1
-        elif action == 3: #down
-            state[0] = state[0] + 1
-        return state
+    #error handling
+    #avoid state corruption with negative coordinates
+    assert(not(state[1] == 0 and action == 0))
+    assert(not(state[0] == 0 and action == 1))
 
-#Check if cell is a wall or not - true is wall, false if non-wall
+    #update state based on action
+    if action == 0: #left
+        state[1] = state[1] - 1
+    elif action == 1: #up
+        state[0] = state[0] - 1
+    elif action == 2: #right
+        state[1] = state[1] + 1
+    elif action == 3: #down
+        state[0] = state[0] + 1
+    return state
+
+#Check if cell is a wall or not - false if obstacle, true if non-obstacle
 def is_non_obstacle(cell):
+    #input checking
+    assert(cell == 0 or cell == 1)
+
     if cell == 0:
         return True
     elif cell == 1:
         return False
-    #TODO error handling
 
 
 #Take current state, make a movement on the current environment,
@@ -123,12 +134,7 @@ def learning_episode(state, Q, env, e, a, y):
         #check if the action is valid
         valid = is_valid_move(env, action, state)
         #update the state based on action
-        # print(state)
-        # print(valid)
-        # print(action)
-        # print(Q)
         prev_state = list(state)
-        # print(prev_state)
         if valid:
             state = update_state(state, action)
         if state == [0,8]:
@@ -159,12 +165,12 @@ def main():
         Q, T = learning_episode(state, Q, env1, e, a, y)
         T_at_step.append(T)
 #note: optimal solution is 10 steps
-    print('Average steps to solve env 1: '),
+    print('Average steps to solve env 1, final 100 episodes: '),
     # print(np.average(T_at_step))
     print(np.mean(T_at_step[-100:]))
     plt.figure(1)
     plt.plot(T_at_step, label='actual')
-    plt.plot([10 for i in range(len(T_at_step))], label='opimal')
+    plt.plot([10 for i in range(len(T_at_step))], label='optimal')
     plt.title('Environment 1 Learning')
     plt.ylabel('# steps to Solve')
     plt.xlabel('Episode')
@@ -178,7 +184,7 @@ def main():
         Q, T = learning_episode(state, Q, env2, e, a, y)
         T_at_step.append(T)
 #note: optimal solution is 16 steps
-    print('Average steps to solve env 2: '),
+    print('Average steps to solve env 2, final 100 episodes: '),
     print(np.mean(T_at_step[-100:]))
     plt.figure(2)
     plt.plot(T_at_step, label='actual')
