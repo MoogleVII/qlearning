@@ -4,6 +4,9 @@ import random as rand
 import matplotlib.pyplot as plt
 import multiprocessing as mp
 
+TMAX = 2**15
+PROC_MAX = 10
+ASYNC_UPDATE = 5
 #Sate: set of coordinates
 #Initial state is [5,3]
 def init_state():
@@ -126,7 +129,7 @@ def is_non_obstacle(cell):
 ## current (state), (Q) action-value function, current environment (env),
 ## probablity coefficient epsiolon (e), learning rate (a)
 ## discount factor (y)
-def learning_worker(state, Q, env, e, a, y, T, q):
+def learning_worker(state, Q, env, e, y, T, q, id):
         ##Each thread:
         # init t = 1
         # init del_Q = 0
@@ -136,31 +139,40 @@ def learning_worker(state, Q, env, e, a, y, T, q):
         ### continue from init until T >  Tmax
         #kill processes and report T
         #track reward and total time steps
-    t = 1
-    while state != [0,8]:
-        #choose action to take
-        action = choose_action(e, Q, state)
-        #check if the action is valid
-        valid = is_valid_move(env, action, state)
-        #update the state based on action
-        prev_state = list(state)
-        if valid:
-            state = update_state(state, action)
-        if state == [0,8]:
-            r = 1
-        else:
-            r = 0
-        ## TODO:
-        #update del_Q instead of Q
-        #push to manager - t, del_Q, total reward so far
-        q.put(['grape', 1, 2.4])
-        Q[prev_state[0]][prev_state[1]][action] += a * (r + (y * Q[state[0]][state[1]][maximising_action(Q, state)]) - Q[prev_state[0]][prev_state[1]][action])
 
-        t+=1
-    ## TODO:
-    #update Q
-    #update T
-    #loop on condition T
+    #process specific Q updates
+    del_Q = init_q()
+    #process specific time steps taken
+    t = 1
+    #continue learning until TMAX is reached
+    while T.value < TMAX:
+        state = init_state()
+        #learn until goal reached or TMAX reached
+        while state != [0,8] and T.value < TMAX:
+            #choose action to take
+            action = choose_action(e, Q, state)
+            #check if the action is valid
+            valid = is_valid_move(env, action, state)
+            #update the state based on action
+            prev_state = list(state)
+            if valid:
+                state = update_state(state, action)
+            if state == [0,8]:
+                r = 1
+            else:
+                r = 0
+            #update del_Q
+            del_Q[prev_state[0]][prev_state[1]][action] += (r + (y * Q[state[0]][state[1]][maximising_action(Q, state)]) - Q[prev_state[0]][prev_state[1]][action])
+            if (T.value < TMAX and t % ASYNC_UPDATE == 0) or state == [0,8]:
+                #push to manager process - del_Q, time steps taken, process id, and
+                q.put([t, del_Q, id, r])
+                #reset del_Q to 0
+                del_Q = init_q()
+
+            T.value += 1
+            t+=1
+        #allow processes to terminate without clearing queue
+    q.cancel_join_thread()
 
 def main():
     #create process manager
@@ -182,26 +194,38 @@ def main():
     y = 0.95
     async_update = 5
 
-    #TODO
-    #while T < TMAX
-    #block until something pops into queue
-    resp = q.get()
-    #use manager to handle Q and T
-    #handle Q update
-    #make copy of Qproxy
-    Q = list(Q_proxy)
-    #update this copy using subprocess deltas
-    Q[0][0][0] = 1
-    #replace top level objects in proxy list with the changed copy
-    Q_proxy[0] = Q[0]
-    #handle T update
-##join threads when T done
-#learn env1 then env2
 
-    job =  mp.Process(target=learning_worker, args=(init_state(), Q_proxy, env1, e, a, y, T, q ))
-    job.start()
-    job.join()
 
+    jobs =  [mp.Process(target=learning_worker, args=(init_state(), Q_proxy, env1, e, y, T, q, i )) for i in range(PROC_MAX)]
+    for j in jobs:
+        j.start()
+
+    while T.value < TMAX:
+        resp = q.get()
+        # print(resp[0]),
+        # print(T.value)
+
+        #use manager to handle Q and T
+        #handle Q update
+        del_Q = list(resp[1])
+        #make copy of Qproxy
+        Q_update = list(Q_proxy)
+        #update this copy using subprocess delta
+        for i in range(len(Q_update)):
+            for j in range(len(Q_update[0])):
+                for k in range(len(Q_update[0][0])):
+                    Q_update[i][j][k] += del_Q[i][j][k]
+                    # if del_Q[i][j][k] != 0:
+                    # print('nonzero')
+        #replace top level objects in proxy list with the updated copy
+        for i in range(len(Q_proxy)):
+            Q_proxy[i] = Q_update[i]
+    ##join threads when T done
+    for j in jobs:
+        j.join()
+    print(Q_proxy)
+#TODO
+    #learn env1 then env2
 
 
 #     for i in range(1001):
