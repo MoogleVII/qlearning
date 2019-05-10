@@ -2,6 +2,7 @@
 import numpy as np
 import random as rand
 import matplotlib.pyplot as plt
+import multiprocessing as mp
 
 #Sate: set of coordinates
 #Initial state is [5,3]
@@ -125,9 +126,17 @@ def is_non_obstacle(cell):
 ## current (state), (Q) action-value function, current environment (env),
 ## probablity coefficient epsiolon (e), learning rate (a)
 ## discount factor (y)
-def learning_episode(state, Q, env, e, a, y):
-
-    T = 0
+def learning_worker(state, Q, env, e, a, y, T, q):
+        ##Each thread:
+        # init t = 1
+        # init del_Q = 0
+        #perform learning use global Q
+            #Block read until write done?
+        ##push to global Q on 5th step and terminal s
+        ### continue from init until T >  Tmax
+        #kill processes and report T
+        #track reward and total time steps
+    t = 1
     while state != [0,8]:
         #choose action to take
         action = choose_action(e, Q, state)
@@ -141,17 +150,29 @@ def learning_episode(state, Q, env, e, a, y):
             r = 1
         else:
             r = 0
-        #update Q
+        ## TODO:
+        #update del_Q instead of Q
+        #push to manager - t, del_Q, total reward so far
+        q.put(['grape', 1, 2.4])
         Q[prev_state[0]][prev_state[1]][action] += a * (r + (y * Q[state[0]][state[1]][maximising_action(Q, state)]) - Q[prev_state[0]][prev_state[1]][action])
 
-        T+=1
-    return Q, T
+        t+=1
+    ## TODO:
+    #update Q
+    #update T
+    #loop on condition T
 
 def main():
+    #create process manager
+    mgr = mp.Manager()
+    #create process-shared Q, T
+    Q_proxy = mgr.list(init_q())
+    T = mgr.Value('i',1)
+    #create queue for process communication
+    q = mp.Queue()
     #initialize environments 1 and 2, Q array, state
     rand.seed()
     env1, env2 = init_env()
-    Q = init_q()
     #array to be graphed - episode vs T taken to reach solution
     T_at_step = []
     #learn on environment 1, 1000 steps
@@ -159,51 +180,65 @@ def main():
     a = 1
     e = 0.05
     y = 0.95
+    async_update = 5
 
-    for i in range(1001):
-        state = init_state() #move to loop
-        Q, T = learning_episode(state, Q, env1, e, a, y)
-        T_at_step.append(T)
-#note: optimal solution is 10 steps
-    print('Average steps to solve env 1, final 100 episodes: '),
-    # print(np.average(T_at_step))
-    print(np.mean(T_at_step[-100:]))
-    plt.figure(1)
-    plt.plot(T_at_step, label='actual')
-    plt.plot([10 for i in range(len(T_at_step))], label='optimal')
-    plt.title('Environment 1 Learning')
-    plt.ylabel('# steps to Solve')
-    plt.xlabel('Episode')
-    plt.legend()
+    #TODO
+    #while T < TMAX
+    #block until something pops into queue
+    resp = q.get()
+    #use manager to handle Q and T
+    #handle Q update
+    #make copy of Qproxy
+    Q = list(Q_proxy)
+    #update this copy using subprocess deltas
+    Q[0][0][0] = 1
+    #replace top level objects in proxy list with the changed copy
+    Q_proxy[0] = Q[0]
+    #handle T update
+##join threads when T done
+#learn env1 then env2
+
+    job =  mp.Process(target=learning_worker, args=(init_state(), Q_proxy, env1, e, a, y, T, q ))
+    job.start()
+    job.join()
 
 
-    #learn on environment 2, 1000 steps
-    T_at_step = []
-    for i in range(1001):
-        state = init_state() #move to loop
-        Q, T = learning_episode(state, Q, env2, e, a, y)
-        T_at_step.append(T)
-#note: optimal solution is 16 steps
-    print('Average steps to solve env 2, final 100 episodes: '),
-    print(np.mean(T_at_step[-100:]))
-    plt.figure(2)
-    plt.plot(T_at_step, label='actual')
-    plt.plot([16 for i in range(len(T_at_step))], label='opimal')
-    plt.title('Environment 2 Learning')
-    plt.ylabel('# steps to Solve')
-    plt.xlabel('Episode')
-    plt.legend()
-    plt.show()
 
-#create multiprocess safe Q, T
-#use manager to handle Q and T
-    ##Each thread:
-    # init t = 1
-    # init del_Q = 0
-    #perform learning use global Q
-    ##push to global Q on 5th step and terminal s
-    ### continue from init until T >  Tmax
-    #kill processes and report T
+#     for i in range(1001):
+#         state = init_state() #move to loop
+#         Q, T = learning_episode(state, Q, env1, e, a, y)
+#         T_at_step.append(T)
+# #note: optimal solution is 10 steps
+#     print('Average steps to solve env 1, final 100 episodes: '),
+#     # print(np.average(T_at_step))
+#     print(np.mean(T_at_step[-100:]))
+#     plt.figure(1)
+#     plt.plot(T_at_step, label='actual')
+#     plt.plot([10 for i in range(len(T_at_step))], label='optimal')
+#     plt.title('Environment 1 Learning')
+#     plt.ylabel('# steps to Solve')
+#     plt.xlabel('Episode')
+#     plt.legend()
+#
+#
+#     #learn on environment 2, 1000 steps
+#     T_at_step = []
+#     for i in range(1001):
+#         state = init_state() #move to loop
+#         Q, T = learning_episode(state, Q, env2, e, a, y)
+#         T_at_step.append(T)
+# #note: optimal solution is 16 steps
+#     print('Average steps to solve env 2, final 100 episodes: '),
+#     print(np.mean(T_at_step[-100:]))
+#     plt.figure(2)
+#     plt.plot(T_at_step, label='actual')
+#     plt.plot([16 for i in range(len(T_at_step))], label='opimal')
+#     plt.title('Environment 2 Learning')
+#     plt.ylabel('# steps to Solve')
+#     plt.xlabel('Episode')
+#     plt.legend()
+#     plt.show()
+
 
 if __name__ == "__main__":
     main()
