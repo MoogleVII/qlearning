@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import multiprocessing as mp
 
 TMAX = 2**15
-PROC_MAX = 10
+PROC_MAX = 6
 ASYNC_UPDATE = 5
 #Sate: set of coordinates
 #Initial state is [5,3]
@@ -171,7 +171,8 @@ def learning_worker(state, Q, env, e, y, T, q, id):
 
             T.value += 1
             t+=1
-        #allow processes to terminate without clearing queue
+
+    #allow processes to terminate without clearing queue - some updates may be lost
     q.cancel_join_thread()
 
 def main():
@@ -185,29 +186,29 @@ def main():
     #initialize environments 1 and 2, Q array, state
     rand.seed()
     env1, env2 = init_env()
-    #array to be graphed - episode vs T taken to reach solution
-    T_at_step = []
-    #learn on environment 1, 1000 steps
+    #list to track process stats: timesteps taken and total reward
+    p_stats = [[0 for i in range(2)] for j in range(PROC_MAX)]
     #learning parameters
-    a = 1
     e = 0.05
     y = 0.95
-    async_update = 5
 
-
-
+    #start PROC_MAX learning worker processes
     jobs =  [mp.Process(target=learning_worker, args=(init_state(), Q_proxy, env1, e, y, T, q, i )) for i in range(PROC_MAX)]
     for j in jobs:
         j.start()
 
+    #Manager process collects process updates
     while T.value < TMAX:
         resp = q.get()
+        #handle Q update
+        proc_t = resp[0]
+        del_Q = list(resp[1])
+        pid = resp[2]
+        proc_r = resp[3]
+
         # print(resp[0]),
         # print(T.value)
 
-        #use manager to handle Q and T
-        #handle Q update
-        del_Q = list(resp[1])
         #make copy of Qproxy
         Q_update = list(Q_proxy)
         #update this copy using subprocess delta
@@ -215,15 +216,34 @@ def main():
             for j in range(len(Q_update[0])):
                 for k in range(len(Q_update[0][0])):
                     Q_update[i][j][k] += del_Q[i][j][k]
-                    # if del_Q[i][j][k] != 0:
-                    # print('nonzero')
+
         #replace top level objects in proxy list with the updated copy
         for i in range(len(Q_proxy)):
             Q_proxy[i] = Q_update[i]
-    ##join threads when T done
+
+        #update process-specific stats (total: time steps, reward)
+        p_stats[pid][0] = proc_t
+        p_stats[pid][1] += proc_r
+    ##join threads when TMAX reached
     for j in jobs:
         j.join()
-    print(Q_proxy)
+
+    #model statistics: average total episodic reward across all agents
+    ## vs total timesteps across agents
+    steps = []
+    rewards = []
+    for i in p_stats:
+        steps.append(i[0])
+        rewards.append(i[1])
+    # print(p_stats)
+    # print(Q_proxy)
+    print('avg steps taken by each agent: '),
+    print(np.mean(steps))
+    print('avg reward across all agents: '),
+    print(np.mean(rewards))
+    print('learning time ratio (lower = better): '),
+    print(np.mean(steps) / np.mean(rewards))
+
 #TODO
     #learn env1 then env2
 
