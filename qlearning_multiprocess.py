@@ -4,9 +4,12 @@ import random as rand
 import matplotlib.pyplot as plt
 import multiprocessing as mp
 
+# TMAX = 2**15 # so far ideal for proc< 10
+
 TMAX = 2**15
-PROC_MAX = 6
+PROC_MAX = 5
 ASYNC_UPDATE = 5
+
 #Sate: set of coordinates
 #Initial state is [5,3]
 def init_state():
@@ -199,19 +202,21 @@ def main():
 
     #Manager process collects process updates
     while T.value < TMAX:
-        resp = q.get()
-        #handle Q update
+        try:
+            #if timeout then workers are all done
+            resp = q.get(True, 1)
+        except:
+            #stop trying to collect items, print stats
+            break
         proc_t = resp[0]
         del_Q = list(resp[1])
         pid = resp[2]
         proc_r = resp[3]
 
-        # print(resp[0]),
-        # print(T.value)
-
-        #make copy of Qproxy
+        #handle Q update:
+        #make copy of data in Qproxy
         Q_update = list(Q_proxy)
-        #update this copy using subprocess delta
+        #update this copy using subprocess deltas
         for i in range(len(Q_update)):
             for j in range(len(Q_update[0])):
                 for k in range(len(Q_update[0][0])):
@@ -224,7 +229,8 @@ def main():
         #update process-specific stats (total: time steps, reward)
         p_stats[pid][0] = proc_t
         p_stats[pid][1] += proc_r
-    ##join threads when TMAX reached
+        
+    ##join processes when TMAX reached
     for j in jobs:
         j.join()
 
