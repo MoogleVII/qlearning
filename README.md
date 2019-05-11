@@ -21,3 +21,10 @@ Simply run `python <script>` to see the output to console and graph for each of 
 
 
 ### Images ###
+
+  *Fig 1, single process, environment 1 learning
+
+  *Fig 2, single process, environment 2 transfer learning
+
+  *Fig 3, multiple processes, environment 1 learning
+ !(https://github.com/MoogleVII/qlearning/blob/master/Figure_1.png)

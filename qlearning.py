@@ -157,7 +157,7 @@ def main():
     #learn on environment 1, 1000 steps
     #learning parameters
     a = 1
-    e = 0.05
+    e = 0.005
     y = 0.95
 
     for i in range(1001):
@@ -174,6 +174,7 @@ def main():
     plt.title('Environment 1 Learning')
     plt.ylabel('# steps to Solve')
     plt.xlabel('Episode')
+    plt.ylim(0,60)
     plt.legend()
 
 
@@ -193,6 +194,8 @@ def main():
     plt.ylabel('# steps to Solve')
     plt.xlabel('Episode')
     plt.legend()
+    plt.ylim(0,60)
+
     plt.show()
 
 if __name__ == "__main__":
