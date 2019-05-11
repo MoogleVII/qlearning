@@ -1,4 +1,5 @@
 import qlearning as ql
+import qlearning_multiprocess as qlm
 import unittest
 
 class TestQlearning(unittest.TestCase):
@@ -97,6 +98,14 @@ class TestQlearning(unittest.TestCase):
         rQ, rT = ql.learning_episode(state, Q, env, e, a, y)
         self.assertEqual(Q, rQ)
         self.assertEqual(0, rT)
+#test multiprocessing communication
+    def test_multiprocessing_communication(self):
+        mgr = qlm.mp.Manager()
+        #mock nested managed list to imitate actual use
+        array_proxy = mgr.list([[0]])
+
+    def worker_process(q):
+        print('10')
 
 if __name__ == '__main__':
     unittest.main()

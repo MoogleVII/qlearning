@@ -159,7 +159,12 @@ def learning_worker(state, Q, env, e, y, T, q, id):
             del_Q[prev_state[0]][prev_state[1]][action] += (r + (y * Q[state[0]][state[1]][maximising_action(Q, state)]) - Q[prev_state[0]][prev_state[1]][action])
             if (T.value < TMAX and t % ASYNC_UPDATE == 0) or state == [0,8]:
                 #push to manager process - del_Q, time steps taken, process id, and
-                q.put([t, del_Q, id, r], True, 4)
+                try:
+                    q.put([t, del_Q, id, r], True, 1)
+                except:
+                    #if queue full,
+                    print('killing process {}, TMAX reached'.format(id))
+                    break
                 #reset del_Q to 0
                 del_Q = init_q()
             T.value += 1
@@ -188,7 +193,7 @@ def main():
         Q_proxy = mgr.list(init_q())
         T = mgr.Value('i',1)
         #create queue for process communication
-        q = mp.Queue()
+        q = mp.Queue(2*proc)
         #initialize environments 1 and 2
         env1, env2 = init_env()
         #list to track process stats: timesteps taken and total reward
@@ -204,7 +209,7 @@ def main():
 
         #Manager process collects process updates, propagates back to subprocesses
         ## via proxy
-        while T.value < TMAX:
+        while T.value < TMAX or not q.empty():
             try:
                 #if timeout then workers are all done
                 resp = q.get(True, 4)
