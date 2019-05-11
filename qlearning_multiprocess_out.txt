@@ -1,0 +1,50 @@
+current number of procs: 1
+avg steps taken by each agent: 262140.0
+avg reward across all agents: 24615.0
+learning time ratio (lower = better): 10.6496039001
+time taken: 91.4600200653
+current number of procs: 2
+avg steps taken by each agent: 146587.5
+avg reward across all agents: 12558.5
+learning time ratio (lower = better): 11.672373293
+time taken: 58.7389659882
+current number of procs: 3
+avg steps taken by each agent: 101113.333333
+avg reward across all agents: 7.0
+learning time ratio (lower = better): 14444.7619048
+time taken: 53.5911858082
+current number of procs: 4
+avg steps taken by each agent: 60703.75
+avg reward across all agents: 29.5
+learning time ratio (lower = better): 2057.75423729
+time taken: 58.9346060753
+current number of procs: 5
+avg steps taken by each agent: 40928.0
+avg reward across all agents: 50.2
+learning time ratio (lower = better): 815.298804781
+time taken: 61.7886879444
+current number of procs: 6
+avg steps taken by each agent: 30185.8333333
+avg reward across all agents: 61.1666666667
+learning time ratio (lower = better): 493.501362398
+time taken: 65.9479150772
+current number of procs: 7
+avg steps taken by each agent: 23743.5714286
+avg reward across all agents: 33.8571428571
+learning time ratio (lower = better): 701.286919831
+time taken: 69.3387730122
+current number of procs: 8
+avg steps taken by each agent: 19251.875
+avg reward across all agents: 49.125
+learning time ratio (lower = better): 391.8956743
+time taken: 73.6584761143
+current number of procs: 9
+avg steps taken by each agent: 16168.3333333
+avg reward across all agents: 42.2222222222
+learning time ratio (lower = better): 382.934210526
+time taken: 77.5945179462
+current number of procs: 10
+avg steps taken by each agent: 13828.5
+avg reward across all agents: 38.2
+learning time ratio (lower = better): 362.002617801
+time taken: 81.319122076

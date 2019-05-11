@@ -3,11 +3,11 @@ import numpy as np
 import random as rand
 import matplotlib.pyplot as plt
 import multiprocessing as mp
+import timeit
 
-# TMAX = 2**15 # so far ideal for proc< 10
-
-TMAX = 2**15
-PROC_MAX = 5
+# TMAX = 2**18 #Optimal for poc <= 10
+TMAX = 2**13
+PROC_MAX = 10
 ASYNC_UPDATE = 5
 
 #Sate: set of coordinates
@@ -181,113 +181,88 @@ def learning_worker(state, Q, env, e, y, T, q, id):
 def main():
     #create process manager
     mgr = mp.Manager()
+    graph_ratios = []
     #create process-shared Q, T
-    Q_proxy = mgr.list(init_q())
-    T = mgr.Value('i',1)
-    #create queue for process communication
-    q = mp.Queue()
-    #initialize environments 1 and 2, Q array, state
-    rand.seed()
-    env1, env2 = init_env()
-    #list to track process stats: timesteps taken and total reward
-    p_stats = [[0 for i in range(2)] for j in range(PROC_MAX)]
-    #learning parameters
-    e = 0.05
-    y = 0.95
+    for proc in range(1, PROC_MAX+1):
+        start_time = timeit.default_timer()
+        Q_proxy = mgr.list(init_q())
+        T = mgr.Value('i',1)
+        #create queue for process communication
+        q = mp.Queue()
+        #initialize environments 1 and 2, Q array, state
+        rand.seed()
+        env1, env2 = init_env()
+        #list to track process stats: timesteps taken and total reward
+        p_stats = [[0 for i in range(2)] for j in range(proc)]
+        #learning parameters
+        e = 0.05
+        y = 0.95
 
-    #start PROC_MAX learning worker processes
-    jobs =  [mp.Process(target=learning_worker, args=(init_state(), Q_proxy, env1, e, y, T, q, i )) for i in range(PROC_MAX)]
-    for j in jobs:
-        j.start()
+        #start PROC_MAX learning worker processes
+        jobs =  [mp.Process(target=learning_worker, args=(init_state(), Q_proxy, env1, e, y, T, q, i )) for i in range(proc)]
+        for j in jobs:
+            j.start()
 
-    #Manager process collects process updates
-    while T.value < TMAX:
-        try:
-            #if timeout then workers are all done
-            resp = q.get(True, 1)
-        except:
-            #stop trying to collect items, print stats
-            break
-        proc_t = resp[0]
-        del_Q = list(resp[1])
-        pid = resp[2]
-        proc_r = resp[3]
+        #Manager process collects process updates
+        while T.value < TMAX:
+            try:
+                #if timeout then workers are all done
+                resp = q.get(True, 2)
+            except:
+                #stop trying to collect items, print stats
+                break
+            proc_t = resp[0]
+            del_Q = list(resp[1])
+            pid = resp[2]
+            proc_r = resp[3]
 
-        #handle Q update:
-        #make copy of data in Qproxy
-        Q_update = list(Q_proxy)
-        #update this copy using subprocess deltas
-        for i in range(len(Q_update)):
-            for j in range(len(Q_update[0])):
-                for k in range(len(Q_update[0][0])):
-                    Q_update[i][j][k] += del_Q[i][j][k]
+            #handle Q update:
+            #make copy of data in Qproxy
+            Q_update = list(Q_proxy)
+            #update this copy using subprocess deltas
+            for i in range(len(Q_update)):
+                for j in range(len(Q_update[0])):
+                    for k in range(len(Q_update[0][0])):
+                        Q_update[i][j][k] += del_Q[i][j][k]
 
-        #replace top level objects in proxy list with the updated copy
-        for i in range(len(Q_proxy)):
-            Q_proxy[i] = Q_update[i]
+            #replace top level objects in proxy list with the updated copy
+            for i in range(len(Q_proxy)):
+                Q_proxy[i] = Q_update[i]
 
-        #update process-specific stats (total: time steps, reward)
-        p_stats[pid][0] = proc_t
-        p_stats[pid][1] += proc_r
-        
-    ##join processes when TMAX reached
-    for j in jobs:
-        j.join()
+            #update process-specific stats (total: time steps, reward)
+            p_stats[pid][0] = proc_t
+            p_stats[pid][1] += proc_r
 
-    #model statistics: average total episodic reward across all agents
-    ## vs total timesteps across agents
-    steps = []
-    rewards = []
-    for i in p_stats:
-        steps.append(i[0])
-        rewards.append(i[1])
-    # print(p_stats)
-    # print(Q_proxy)
-    print('avg steps taken by each agent: '),
-    print(np.mean(steps))
-    print('avg reward across all agents: '),
-    print(np.mean(rewards))
-    print('learning time ratio (lower = better): '),
-    print(np.mean(steps) / np.mean(rewards))
+        ##join processes when TMAX reached
+        for j in jobs:
+            j.join()
 
-#TODO
-    #learn env1 then env2
+        #model statistics: average total episodic reward across all agents
+        ## vs total timesteps across agents
+        steps = []
+        rewards = []
+        for i in p_stats:
+            steps.append(i[0])
+            rewards.append(i[1])
+        # print(p_stats)
+        # print(Q_proxy)
+        print('current number of procs: {}'.format(proc))
+        print('avg steps taken by each agent: {}'.format(np.mean(steps)))
+        print('avg reward across all agents: {}'.format(np.mean(rewards)))
+        print('learning time ratio (lower = better): {}'.format(np.mean(steps) / np.mean(rewards)))
+        print('time taken: {}'.format(timeit.default_timer() - start_time))
+        graph_ratios.append(np.mean(steps) / np.mean(rewards))
+        proc+=1
 
+    #Graph the statistics from env1
+    plt.figure(1)
+    plt.title('Environment 1 Learning with Multiple Processes')
+    plt.plot(graph_ratios, label='Learning Ratio (Lower is better)')
+    plt.xticks(np.arange(1,11,1))
+    plt.ylabel('Learning Ratio (Lower is better)')
+    plt.xlabel('Number of processes')
+    plt.show()
 
-#     for i in range(1001):
-#         state = init_state() #move to loop
-#         Q, T = learning_episode(state, Q, env1, e, a, y)
-#         T_at_step.append(T)
-# #note: optimal solution is 10 steps
-#     print('Average steps to solve env 1, final 100 episodes: '),
-#     # print(np.average(T_at_step))
-#     print(np.mean(T_at_step[-100:]))
-#     plt.figure(1)
-#     plt.plot(T_at_step, label='actual')
-#     plt.plot([10 for i in range(len(T_at_step))], label='optimal')
-#     plt.title('Environment 1 Learning')
-#     plt.ylabel('# steps to Solve')
-#     plt.xlabel('Episode')
-#     plt.legend()
-#
-#
-#     #learn on environment 2, 1000 steps
-#     T_at_step = []
-#     for i in range(1001):
-#         state = init_state() #move to loop
-#         Q, T = learning_episode(state, Q, env2, e, a, y)
-#         T_at_step.append(T)
-# #note: optimal solution is 16 steps
-#     print('Average steps to solve env 2, final 100 episodes: '),
-#     print(np.mean(T_at_step[-100:]))
-#     plt.figure(2)
-#     plt.plot(T_at_step, label='actual')
-#     plt.plot([16 for i in range(len(T_at_step))], label='opimal')
-#     plt.title('Environment 2 Learning')
-#     plt.ylabel('# steps to Solve')
-#     plt.xlabel('Episode')
-#     plt.legend()
-#     plt.show()
 
 
 if __name__ == "__main__":
