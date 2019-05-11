@@ -159,7 +159,7 @@ def learning_worker(state, Q, env, e, y, T, q, id):
             del_Q[prev_state[0]][prev_state[1]][action] += (r + (y * Q[state[0]][state[1]][maximising_action(Q, state)]) - Q[prev_state[0]][prev_state[1]][action])
             if (T.value < TMAX and t % ASYNC_UPDATE == 0) or state == [0,8]:
                 #push to manager process - del_Q, time steps taken, process id, and
-                q.put([t, del_Q, id, r])
+                q.put([t, del_Q, id, r], True, 4)
                 #reset del_Q to 0
                 del_Q = init_q()
             T.value += 1
@@ -207,9 +207,10 @@ def main():
         while T.value < TMAX:
             try:
                 #if timeout then workers are all done
-                resp = q.get(True, 2)
+                resp = q.get(True, 4)
             except:
                 #stop trying to collect items, print stats
+                print('broke at {} done',format(T.value / TMAX))
                 break
             proc_t = resp[0]
             del_Q = list(resp[1])
