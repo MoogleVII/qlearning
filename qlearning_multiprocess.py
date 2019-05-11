@@ -5,10 +5,10 @@ import matplotlib.pyplot as plt
 import multiprocessing as mp
 import timeit
 
-TMAX = 2**18 #Optimal for poc <= 10
+# TMAX = 2**18 #Optimal for poc <= 10
 # My machine caps out at 2 processes before overhead dominates
-# TMAX = 2**13
-PROC_MAX = 10
+TMAX = 2**13
+PROC_MAX = 15
 ASYNC_UPDATE = 5
 
 #Sate: set of coordinates
@@ -134,16 +134,6 @@ def is_non_obstacle(cell):
 ## probablity coefficient epsiolon (e), learning rate (a)
 ## discount factor (y)
 def learning_worker(state, Q, env, e, y, T, q, id):
-        ##Each thread:
-        # init t = 1
-        # init del_Q = 0
-        #perform learning use global Q
-            #Block read until write done?
-        ##push to global Q on 5th step and terminal s
-        ### continue from init until T >  Tmax
-        #kill processes and report T
-        #track reward and total time steps
-
     #process specific Q updates
     del_Q = init_q()
     #process specific time steps taken
@@ -172,7 +162,6 @@ def learning_worker(state, Q, env, e, y, T, q, id):
                 q.put([t, del_Q, id, r])
                 #reset del_Q to 0
                 del_Q = init_q()
-
             T.value += 1
             t+=1
 
@@ -205,7 +194,7 @@ def main():
         #list to track process stats: timesteps taken and total reward
         p_stats = [[0 for i in range(2)] for j in range(proc)]
         #learning parameters
-        e = 0.05
+        e = 0.005
         y = 0.95
 
         #start PROC_MAX learning worker processes
@@ -268,8 +257,8 @@ def main():
     #Graph the statistics from env1
     plt.figure(1)
     plt.title('Environment 1 Learning with Multiple Processes')
-    plt.plot(graph_ratios, label='Learning Ratio (Lower is better)')
-    plt.xticks(np.arange(1,11,1))
+    plt.plot(np.arange(1,PROC_MAX+1,1),graph_ratios, label='Learning Ratio (Lower is better)')
+    plt.xticks(np.arange(1,PROC_MAX+1,1))
     plt.ylabel('Learning Ratio (Lower is better)')
     plt.xlabel('Number of processes')
     plt.show()
