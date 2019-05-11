@@ -5,8 +5,9 @@ import matplotlib.pyplot as plt
 import multiprocessing as mp
 import timeit
 
-# TMAX = 2**18 #Optimal for poc <= 10
-TMAX = 2**13
+TMAX = 2**18 #Optimal for poc <= 10
+# My machine caps out at 2 processes before overhead dominates
+# TMAX = 2**13
 PROC_MAX = 10
 ASYNC_UPDATE = 5
 
@@ -179,18 +180,27 @@ def learning_worker(state, Q, env, e, y, T, q, id):
     q.cancel_join_thread()
 
 def main():
+    #check globals for sanity
+    assert(TMAX >= 1)
+    assert(PROC_MAX >= 1)
+    assert(ASYNC_UPDATE >= 1)
+
     #create process manager
     mgr = mp.Manager()
     graph_ratios = []
-    #create process-shared Q, T
+
+    #Perform learning from scratch with 1 to 10 processes
     for proc in range(1, PROC_MAX+1):
+        rand.seed()
+
+        #timer for checking runtimes
         start_time = timeit.default_timer()
+        #create process-shared Q, T
         Q_proxy = mgr.list(init_q())
         T = mgr.Value('i',1)
         #create queue for process communication
         q = mp.Queue()
-        #initialize environments 1 and 2, Q array, state
-        rand.seed()
+        #initialize environments 1 and 2
         env1, env2 = init_env()
         #list to track process stats: timesteps taken and total reward
         p_stats = [[0 for i in range(2)] for j in range(proc)]
@@ -203,7 +213,8 @@ def main():
         for j in jobs:
             j.start()
 
-        #Manager process collects process updates
+        #Manager process collects process updates, propagates back to subprocesses
+        ## via proxy
         while T.value < TMAX:
             try:
                 #if timeout then workers are all done
@@ -226,6 +237,7 @@ def main():
                         Q_update[i][j][k] += del_Q[i][j][k]
 
             #replace top level objects in proxy list with the updated copy
+            ## without doing this, changes don't propagate to subprocesses
             for i in range(len(Q_proxy)):
                 Q_proxy[i] = Q_update[i]
 
@@ -244,13 +256,12 @@ def main():
         for i in p_stats:
             steps.append(i[0])
             rewards.append(i[1])
-        # print(p_stats)
-        # print(Q_proxy)
         print('current number of procs: {}'.format(proc))
         print('avg steps taken by each agent: {}'.format(np.mean(steps)))
         print('avg reward across all agents: {}'.format(np.mean(rewards)))
         print('learning time ratio (lower = better): {}'.format(np.mean(steps) / np.mean(rewards)))
         print('time taken: {}'.format(timeit.default_timer() - start_time))
+        #collect stats for graphing
         graph_ratios.append(np.mean(steps) / np.mean(rewards))
         proc+=1
 
