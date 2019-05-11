@@ -177,10 +177,10 @@ def main():
     #create process manager
     mgr = mp.Manager()
     graph_ratios = []
+    rand.seed(1) # seed with static value for testing purposes
 
     #Perform learning from scratch with 1 to 10 processes
     for proc in range(1, PROC_MAX+1):
-        rand.seed()
 
         #timer for checking runtimes
         start_time = timeit.default_timer()
