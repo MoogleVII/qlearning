@@ -98,14 +98,24 @@ class TestQlearning(unittest.TestCase):
         rQ, rT = ql.learning_episode(state, Q, env, e, a, y)
         self.assertEqual(Q, rQ)
         self.assertEqual(0, rT)
+
+#mock worker process for testing communication
+    def worker_process(self, q):
+        q.put(1)
+
 #test multiprocessing communication
     def test_multiprocessing_communication(self):
         mgr = qlm.mp.Manager()
         #mock nested managed list to imitate actual use
+        q = mgr.Queue()
         array_proxy = mgr.list([[0]])
+        job =  qlm.mp.Process(target=self.worker_process, args=(q,))
+        job.start()
+        self.assertEqual(q.get(), 1)
+        job.join()
 
-    def worker_process(q):
-        print('10')
+
+
 
 if __name__ == '__main__':
     unittest.main()
