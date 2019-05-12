@@ -186,78 +186,82 @@ def main():
 
     #Perform learning from scratch with 1 to 10 processes
     for proc in range(1, PROC_MAX+1):
+        internal_avg = []
+        #run each simulation multiple times to get an average learning rate per process
+        for z in range(6):
 
-        #timer for checking runtimes
-        start_time = timeit.default_timer()
-        #create process-shared Q, T
-        Q_proxy = mgr.list(init_q())
-        T = mgr.Value('i',1)
-        #create queue for process communication
-        q = mp.Queue(2*proc)
-        #initialize environments 1 and 2
-        env1, env2 = init_env()
-        #list to track process stats: timesteps taken and total reward
-        p_stats = [[0 for i in range(2)] for j in range(proc)]
-        #learning parameters
-        e = 0.005
-        y = 0.95
+            #timer for checking runtimes
+            start_time = timeit.default_timer()
+            #create process-shared Q, T
+            Q_proxy = mgr.list(init_q())
+            T = mgr.Value('i',1)
+            #create queue for process communication
+            q = mp.Queue(2*proc)
+            #initialize environments 1 and 2
+            env1, env2 = init_env()
+            #list to track process stats: timesteps taken and total reward
+            p_stats = [[0 for i in range(2)] for j in range(proc)]
+            #learning parameters
+            e = 0.005
+            y = 0.95
 
-        #start PROC_MAX learning worker processes
-        jobs =  [mp.Process(target=learning_worker, args=(init_state(), Q_proxy, env1, e, y, T, q, i )) for i in range(proc)]
-        for j in jobs:
-            j.start()
+            #start PROC_MAX learning worker processes
+            jobs =  [mp.Process(target=learning_worker, args=(init_state(), Q_proxy, env1, e, y, T, q, i )) for i in range(proc)]
+            for j in jobs:
+                j.start()
 
-        #Manager process collects process updates, propagates back to subprocesses
-        ## via proxy
-        while T.value < TMAX or not q.empty():
-            try:
-                #if timeout then workers are all done
-                resp = q.get(True, 4)
-            except:
-                #stop trying to collect items, print stats
-                print('broke at {} done',format(T.value / TMAX))
-                break
-            proc_t = resp[0]
-            del_Q = list(resp[1])
-            pid = resp[2]
-            proc_r = resp[3]
+            #Manager process collects process updates, propagates back to subprocesses
+            ## via proxy
+            while T.value < TMAX or not q.empty():
+                try:
+                    #if timeout then workers are all done
+                    resp = q.get(True, 4)
+                except:
+                    #stop trying to collect items, print stats
+                    print('broke at {} done',format(T.value / TMAX))
+                    break
+                proc_t = resp[0]
+                del_Q = list(resp[1])
+                pid = resp[2]
+                proc_r = resp[3]
 
-            #handle Q update:
-            #make copy of data in Qproxy
-            Q_update = list(Q_proxy)
-            #update this copy using subprocess deltas
-            for i in range(len(Q_update)):
-                for j in range(len(Q_update[0])):
-                    for k in range(len(Q_update[0][0])):
-                        Q_update[i][j][k] += del_Q[i][j][k]
+                #handle Q update:
+                #make copy of data in Qproxy
+                Q_update = list(Q_proxy)
+                #update this copy using subprocess deltas
+                for i in range(len(Q_update)):
+                    for j in range(len(Q_update[0])):
+                        for k in range(len(Q_update[0][0])):
+                            Q_update[i][j][k] += del_Q[i][j][k]
 
-            #replace top level objects in proxy list with the updated copy
-            ## without doing this, changes don't propagate to subprocesses
-            for i in range(len(Q_proxy)):
-                Q_proxy[i] = Q_update[i]
+                #replace top level objects in proxy list with the updated copy
+                ## without doing this, changes don't propagate to subprocesses
+                for i in range(len(Q_proxy)):
+                    Q_proxy[i] = Q_update[i]
 
-            #update process-specific stats (total: time steps, reward)
-            p_stats[pid][0] = proc_t
-            p_stats[pid][1] += proc_r
+                #update process-specific stats (total: time steps, reward)
+                p_stats[pid][0] = proc_t
+                p_stats[pid][1] += proc_r
 
-        ##join processes when TMAX reached
-        for j in jobs:
-            j.join()
+            ##join processes when TMAX reached
+            for j in jobs:
+                j.join()
 
-        #model statistics: average total episodic reward across all agents
-        ## vs total timesteps across agents
-        steps = []
-        rewards = []
-        for i in p_stats:
-            steps.append(i[0])
-            rewards.append(i[1])
-        print('current number of procs: {}'.format(proc))
-        print('avg steps taken by each agent: {}'.format(np.mean(steps)))
-        print('avg reward across all agents: {}'.format(np.mean(rewards)))
-        print('learning time ratio (lower = better): {}'.format(np.mean(steps) / np.mean(rewards)))
-        print('time taken: {}'.format(timeit.default_timer() - start_time))
-        #collect stats for graphing
-        graph_ratios.append(np.mean(steps) / np.mean(rewards))
+            #model statistics: average total episodic reward across all agents
+            ## vs total timesteps across agents
+            steps = []
+            rewards = []
+            for i in p_stats:
+                steps.append(i[0])
+                rewards.append(i[1])
+            print('current number of procs: {}'.format(proc))
+            print('avg steps taken by each agent: {}'.format(np.mean(steps)))
+            print('avg reward across all agents: {}'.format(np.mean(rewards)))
+            print('learning time ratio (lower = better): {}'.format(np.mean(steps) / np.mean(rewards)))
+            print('time taken: {}'.format(timeit.default_timer() - start_time))
+            #collect stats for graphing
+            internal_avg.append(np.mean(steps) / np.mean(rewards))
+        graph_ratios.append(np.mean(internal_avg))
         proc+=1
 
     #Graph the statistics from env1
