@@ -8,6 +8,9 @@
 3. testsuite.py
   * This is a simple test suite for both main scripts
 
+### Installation ###
+  * This project uses mainly internal python 2.7 modules with the exception of numpy, scipy and matplotlib
+  * External packages can be installed using: 'python -m pip install --user numpy scipy matplotlib'
 ### Usage ###
 
 Simply run `python <script>` to see the output to console and graph for each of the main scripts.
