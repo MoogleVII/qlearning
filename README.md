@@ -18,6 +18,8 @@ Simply run `python <script>` to see the output to console and graph for each of 
    * Linearly or exponentially decreasing value of epsiolon as processes run, making randomness factor less as learning progresses
    * Changing the number of TMAX for multiprocessing, maybe make it based on PROC_MAX
    * Playing with the size of the queue for multiprocessing communication
+   * Performing multiple simulations for averaging of results
+   * multiprocessing version doesn't tranfer learning to env2 as it isn't required in the assignment, but that could be added easily
 
 
 ### Images ###
@@ -27,4 +29,4 @@ Simply run `python <script>` to see the output to console and graph for each of 
   * Fig 2, single process, environment 2 transfer learning
   ![fig 2](https://github.com/MoogleVII/qlearning/blob/master/Figure_3.png)
   * Fig 3, multiple processes, environment 1 learning
- ![fig 3](https://github.com/MoogleVII/qlearning/blob/master/Figure_1.png)
+  ![fig 3](https://github.com/MoogleVII/qlearning/blob/master/Figure_1.png)

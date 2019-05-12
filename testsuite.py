@@ -1,6 +1,7 @@
 import qlearning as ql
 import qlearning_multiprocess as qlm
 import unittest
+import time
 
 class TestQlearning(unittest.TestCase):
 
@@ -99,21 +100,51 @@ class TestQlearning(unittest.TestCase):
         self.assertEqual(Q, rQ)
         self.assertEqual(0, rT)
 
-#mock worker process for testing communication
-    def worker_process(self, q):
-        q.put(1)
+#mock worker process for sending communication
+    def worker_process_put(self, q):
+        q.put([[1]])
 
-#test multiprocessing communication
+#mock worker process for receiving communication
+    def worker_process_get(self, array_proxy):
+        while(array_proxy[0][0] == 0):
+            #sleep until communication happens
+            time.sleep(0.1)
+        self.assertEqual(array_proxy[0][0] , 1)
+        print("Child got update from other child via manager")
+
+#test multiprocessing communication with manager
     def test_multiprocessing_communication(self):
+        #create manager process
         mgr = qlm.mp.Manager()
         #mock nested managed list to imitate actual use
-        q = mgr.Queue()
         array_proxy = mgr.list([[0]])
-        job =  qlm.mp.Process(target=self.worker_process, args=(q,))
+        #queue for process communication
+        q = mgr.Queue()
+        job =  qlm.mp.Process(target=self.worker_process_put, args=(q,))
         job.start()
-        self.assertEqual(q.get(), 1)
+        #check if child sends proper communication
+        self.assertEqual(q.get(), [[1]])
         job.join()
 
+#test data propagation from manager downstream to children
+    def test_manager_propagation(self):
+        mgr = qlm.mp.Manager()
+        #mock nested managed list to imitate actual use
+        array_proxy = mgr.list([[0]])
+        #queue for process communication
+        q = mgr.Queue()
+        #process to send comms
+        put_job =  qlm.mp.Process(target=self.worker_process_put, args=(q,))
+        #pocess to receive comms
+        get_job =  qlm.mp.Process(target=self.worker_process_get, args=(array_proxy,))
+
+        put_job.start()
+        get_job.start()
+        array_update = q.get()
+        #update proxy, which will propagate to children
+        array_proxy[0] = array_update[0]
+        put_job.join()
+        get_job.join()
 
 
 

@@ -46,7 +46,8 @@ def maximising_action(Q, state):
     #Action mapping - [left, up, right, down] == [0, 1, 2, 3]
     return np.random.choice(maxima)
 
-#choose action to be taken based on probablility (e)
+#choose action to be taken from (state) based on probablility (e)
+## and action-value function Q
 #Action mapping - [left, up, right, down] == [0, 1, 2, 3]
 def choose_action(e, Q, state):
     #based on e, choose either random action (0) or maximising action (1)
@@ -60,9 +61,9 @@ def choose_action(e, Q, state):
 
 #Check if the selected movement is valid based on current state and environment
 ##PARAMETERS
-#current state, proposed movement, current environment
+#current state, proposed action, current environment
 def is_valid_move(env, action, state):
-    #error handling
+    #input checking
     assert(action <= 3 and action >= 0)
     assert(len(env) > 0)
     assert(len(state) == 2)
@@ -89,7 +90,7 @@ def is_valid_move(env, action, state):
             return False
         return is_non_obstacle(env[state[0]+0][state[1]])
 
-#updates current state based on the decided action
+#updates current (state) based on the decided (action)
 def update_state(state, action):
     #error handling
     #avoid state corruption with negative coordinates
@@ -147,6 +148,8 @@ def learning_episode(state, Q, env, e, a, y):
         T+=1
     return Q, T
 
+#Prform Q-learning to solve a gridworld board game using e-greedy policy
+#Main function handles dispatching workers and data collection to be graphed
 def main():
     #initialize environments 1 and 2, Q array, state
     rand.seed()

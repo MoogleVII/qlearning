@@ -5,9 +5,11 @@ import matplotlib.pyplot as plt
 import multiprocessing as mp
 import timeit
 
-# TMAX = 2**18 #Optimal for poc <= 10
-# My machine caps out at 2 processes before overhead dominates
+
+#Global parameters for q-learning
 TMAX = 2**13
+# My machine caps out at 2 processes, but more can still show improvements in
+# effective learning rate
 PROC_MAX = 15
 ASYNC_UPDATE = 5
 
@@ -54,7 +56,8 @@ def maximising_action(Q, state):
     #Action mapping - [left, up, right, down] == [0, 1, 2, 3]
     return np.random.choice(maxima)
 
-#choose action to be taken based on probablility (e)
+#choose action to be taken from (state) based on probablility (e)
+## and action-value function Q
 #Action mapping - [left, up, right, down] == [0, 1, 2, 3]
 def choose_action(e, Q, state):
     #based on e, choose either random action (0) or maximising action (1)
@@ -68,7 +71,7 @@ def choose_action(e, Q, state):
 
 #Check if the selected movement is valid based on current state and environment
 ##PARAMETERS
-#current state, proposed movement, current environment
+#current state, proposed action, current environment
 def is_valid_move(env, action, state):
     #error handling
     assert(action <= 3 and action >= 0)
@@ -97,7 +100,7 @@ def is_valid_move(env, action, state):
             return False
         return is_non_obstacle(env[state[0]+0][state[1]])
 
-#updates current state based on the decided action
+#updates current (state) based on the decided (action)
 def update_state(state, action):
     #error handling
     #avoid state corruption with negative coordinates
@@ -126,14 +129,14 @@ def is_non_obstacle(cell):
         return False
 
 
-#Take current state, make a movement on the current environment,
-## update Q and state accordingly with time step. Recursivly calls self until
-## goal location is reached
+# update global Q asynchronously while communicating via proxies to manager process
+## end when (TMAX) time steps have elapsed among all processes
 #PARAMETERS
-## current (state), (Q) action-value function, current environment (env),
-## probablity coefficient epsiolon (e), learning rate (a)
-## discount factor (y)
-def learning_worker(state, Q, env, e, y, T, q, id):
+## (Q) global action-value function, current environment (env),
+## probablity coefficient epsiolon (e) discount factor (y)
+## global time step count (T), inter-process communication queue (q)
+## own process (id)
+def learning_worker( Q, env, e, y, T, q, id):
     #process specific Q updates
     del_Q = init_q()
     #process specific time steps taken
@@ -173,6 +176,10 @@ def learning_worker(state, Q, env, e, y, T, q, id):
     #allow processes to terminate without clearing queue - some updates may be lost
     q.cancel_join_thread()
 
+#Main function - performs asynchronous Q-learning to solve a gridworld board
+# game using e-greedy policy.
+# Main function - Create manager process, define global parameters, graph result
+## of Q-learning
 def main():
     #check globals for sanity
     assert(TMAX >= 1)
@@ -184,7 +191,7 @@ def main():
     graph_ratios = []
     rand.seed(1) # seed with static value for testing purposes
 
-    #Perform learning from scratch with 1 to 10 processes
+    #Perform learning from scratch with 1 to PROC_MAX processes
     for proc in range(1, PROC_MAX+1):
         internal_avg = []
         #run each simulation multiple times to get an average learning rate per process
@@ -206,7 +213,7 @@ def main():
             y = 0.95
 
             #start PROC_MAX learning worker processes
-            jobs =  [mp.Process(target=learning_worker, args=(init_state(), Q_proxy, env1, e, y, T, q, i )) for i in range(proc)]
+            jobs =  [mp.Process(target=learning_worker, args=(Q_proxy, env1, e, y, T, q, i )) for i in range(proc)]
             for j in jobs:
                 j.start()
 
